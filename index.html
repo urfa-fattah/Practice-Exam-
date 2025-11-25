@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OMR Practice App</title>
+    <title>OMR Master & Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -13,11 +13,15 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-      body { background-color: #f9fafb; }
-      /* Custom scrollbar for better UX */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: #f1f1f1; }
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      body { background-color: #f8fafc; }
+      /* Smooth transitions */
+      .fade-in { animation: fadeIn 0.3s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+      
+      /* Scrollbars */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
   </head>
@@ -25,202 +29,299 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useMemo } = React;
 
-      // --- ICONS (Replaced lucide-react imports with inline SVGs for standalone compatibility) ---
-      const IconWrapper = ({ children, size = 24, className = "" }) => (
+      // --- ICONS ---
+      const IconWrapper = ({ children, size = 20, className = "" }) => (
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
           {children}
         </svg>
       );
 
-      const Settings = (props) => <IconWrapper {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
-      const Clock = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
-      const Award = (props) => <IconWrapper {...props}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></IconWrapper>;
-      const CheckCircle = (props) => <IconWrapper {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconWrapper>;
-      const XCircle = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></IconWrapper>;
-      const RotateCcw = (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconWrapper>;
-      const FileText = (props) => <IconWrapper {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></IconWrapper>;
-      const Trash2 = (props) => <IconWrapper {...props}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconWrapper>;
+      // Icons
+      const Settings = (p) => <IconWrapper {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
+      const Clock = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
+      const Award = (p) => <IconWrapper {...p}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></IconWrapper>;
+      const CheckCircle = (p) => <IconWrapper {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconWrapper>;
+      const XCircle = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></IconWrapper>;
+      const RotateCcw = (p) => <IconWrapper {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconWrapper>;
+      const FileText = (p) => <IconWrapper {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></IconWrapper>;
+      const Trash2 = (p) => <IconWrapper {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconWrapper>;
+      const BarChart2 = (p) => <IconWrapper {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></IconWrapper>;
+      const TrendingUp = (p) => <IconWrapper {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></IconWrapper>;
+      const Activity = (p) => <IconWrapper {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></IconWrapper>;
 
-      // --- CONSTANTS & UTILS ---
-      
+      // --- UTILS & STORAGE ---
       const OMR_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
       const STORAGE_KEY = 'omr_practice_results';
 
       const loadResults = () => {
-        try {
-          const json = localStorage.getItem(STORAGE_KEY);
-          return json ? JSON.parse(json) : [];
-        } catch (e) {
-          console.error("Error loading results from localStorage:", e);
-          return [];
-        }
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } 
+        catch (e) { return []; }
       };
 
       const saveResults = (results) => {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
-        } catch (e) {
-          console.error("Error saving results to localStorage:", e);
-        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
       };
 
       const calculateFinalScore = (answers, correctionKey, positive, negative) => {
-        let correct = 0;
-        let incorrect = 0;
-        let unattempted = 0;
-
-        for (let i = 0; i < answers.length; i++) {
+        let correct = 0, incorrect = 0, unattempted = 0;
+        answers.forEach((ans, i) => {
           const status = correctionKey[i];
-          const attempted = answers[i] !== null;
-
-          if (status === 'correct') {
-            correct++;
-          } else if (status === 'incorrect') {
-            incorrect++;
-          } else {
-            if (!attempted) {
-              unattempted++;
-            } else {
-              unattempted++; 
-            }
-          }
-        }
-
+          const attempted = ans !== null;
+          if (status === 'correct') correct++;
+          else if (status === 'incorrect') incorrect++;
+          else unattempted++;
+        });
         const score = (correct * positive) - (incorrect * negative);
-        
-        return {
-          score: parseFloat(score.toFixed(2)),
-          correct,
-          incorrect,
-          unattempted,
-          totalQuestions: answers.length,
-          positiveMarks: positive,
-          negativeMarks: negative,
-        };
+        return { score: parseFloat(score.toFixed(2)), correct, incorrect, unattempted, totalQuestions: answers.length, positiveMarks: positive, negativeMarks: negative };
       };
 
-      // --- COMPONENTS ---
+      // --- CUSTOM CHART COMPONENT (SVG) ---
+      const SimpleLineChart = ({ data, color = "#2563eb" }) => {
+        // data: array of { value: number, label: string }
+        if (!data || data.length < 2) return <div className="h-40 flex items-center justify-center text-gray-400 text-sm">Need at least 2 attempts to show trend.</div>;
 
-      const SetupScreen = ({ onStartExam, savedResults }) => {
-        const [name, setName] = useState(`Mock Exam ${savedResults.length + 1}`);
-        const [numQ, setNumQ] = useState(10);
-        const [numOptions, setNumOptions] = useState(4);
-        const [positiveMarks, setPositiveMarks] = useState(4);
-        const [negativeMarks, setNegativeMarks] = useState(1);
-        const [timeLimit, setTimeLimit] = useState(60); // minutes
+        const height = 150;
+        const width = 300; // viewBox width
+        const padding = 20;
 
-        const handleStart = () => {
-          if (!name.trim() || numQ <= 0 || numOptions < 2) {
-            alert("Please ensure all settings are valid.");
-            return;
-          }
-          onStartExam({
-            examName: name,
-            numQuestions: parseInt(numQ),
-            numOptions: parseInt(numOptions),
-            positiveMarks: parseFloat(positiveMarks),
-            negativeMarks: parseFloat(negativeMarks),
-            timeLimit: parseInt(timeLimit) * 60, // Convert to seconds
-          });
-        };
+        const maxVal = Math.max(...data.map(d => d.value));
+        const minVal = Math.min(...data.map(d => d.value));
+        const range = maxVal - minVal || 1; // avoid divide by zero
+
+        // Coordinate Helpers
+        const getX = (index) => padding + (index / (data.length - 1)) * (width - 2 * padding);
+        const getY = (value) => height - padding - ((value - minVal) / range) * (height - 2 * padding);
+
+        const points = data.map((d, i) => `${getX(i)},${getY(d.value)}`).join(" ");
 
         return (
-          <div className="p-4 md:p-8 max-w-xl mx-auto">
-            <h1 className="text-3xl font-extrabold text-blue-800 mb-6 flex items-center gap-3">
-              <Settings size={28} /> Setup Practice Exam
-            </h1>
-
-            <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 space-y-4">
+          <div className="w-full overflow-hidden">
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40">
+              {/* Grid Lines */}
+              <line x1={padding} y1={padding} x2={padding} y2={height-padding} stroke="#e2e8f0" strokeWidth="1" />
+              <line x1={padding} y1={height-padding} x2={width-padding} y2={height-padding} stroke="#e2e8f0" strokeWidth="1" />
               
-              {/* Exam Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Exam Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
-                  placeholder="e.g., JEE Main 2023 - Shift 1"
-                />
-              </div>
-
-              {/* Configuration Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions (N)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={numQ}
-                    onChange={(e) => setNumQ(Math.max(1, parseInt(e.target.value) || 0))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Options (M)</label>
-                  <select
-                    value={numOptions}
-                    onChange={(e) => setNumOptions(parseInt(e.target.value))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition bg-white"
-                  >
-                    <option value={4}>4 (A, B, C, D)</option>
-                    <option value={5}>5 (A, B, C, D, E)</option>
-                    <option value={3}>3 (A, B, C)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Marking Scheme Grid */}
-              <div className="grid grid-cols-3 gap-4">
-                  <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time Limit (mins)</label>
-                      <input
-                          type="number"
-                          min="1"
-                          value={timeLimit}
-                          onChange={(e) => setTimeLimit(Math.max(1, parseInt(e.target.value) || 0))}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
-                      />
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-green-700 mb-1">Correct Marks (+)</label>
-                      <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={positiveMarks}
-                          onChange={(e) => setPositiveMarks(parseFloat(e.target.value) || 0)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition text-green-700 font-bold"
-                      />
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-red-700 mb-1">Incorrect Marks (-)</label>
-                      <input
-                          type="number"
-                          min="0"
-                          step="0.25"
-                          value={negativeMarks}
-                          onChange={(e) => setNegativeMarks(parseFloat(e.target.value) || 0)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition text-red-700 font-bold"
-                      />
-                  </div>
-              </div>
+              {/* The Line */}
+              <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              
+              {/* Dots */}
+              {data.map((d, i) => (
+                <circle key={i} cx={getX(i)} cy={getY(d.value)} r="4" fill="white" stroke={color} strokeWidth="2">
+                  <title>{d.label}: {d.value}</title>
+                </circle>
+              ))}
+            </svg>
+            <div className="flex justify-between text-xs text-gray-400 mt-2 px-2">
+              <span>{data[0].label}</span>
+              <span>{data[data.length-1].label}</span>
             </div>
-            
-            <button
-              onClick={handleStart}
-              className="w-full mt-6 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
-            >
-              <FileText size={20} /> Start Exam
-            </button>
-
-            <PastResults savedResults={savedResults} />
           </div>
         );
       };
 
+      // --- SUB-SCREENS ---
+
+      // 1. SETUP SCREEN (Combined with Dashboard)
+      const SetupScreen = ({ onStartExam, savedResults }) => {
+        const [activeTab, setActiveTab] = useState('new'); // 'new' or 'progress'
+        
+        return (
+          <div className="max-w-2xl mx-auto p-4 md:p-6 fade-in">
+            <div className="flex items-center justify-center mb-6 bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit mx-auto">
+              <button 
+                onClick={() => setActiveTab('new')}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'new' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                New Exam
+              </button>
+              <button 
+                onClick={() => setActiveTab('progress')}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'progress' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                <TrendingUp size={16} /> Progress
+              </button>
+            </div>
+
+            {activeTab === 'new' ? (
+              <NewExamForm onStartExam={onStartExam} totalSaved={savedResults.length} />
+            ) : (
+              <ProgressDashboard savedResults={savedResults} />
+            )}
+          </div>
+        );
+      };
+
+      // 1.1 NEW EXAM FORM
+      const NewExamForm = ({ onStartExam, totalSaved }) => {
+        const [name, setName] = useState(`Mock Exam ${totalSaved + 1}`);
+        const [numQ, setNumQ] = useState(20);
+        const [numOptions, setNumOptions] = useState(4);
+        const [positiveMarks, setPositiveMarks] = useState(4);
+        const [negativeMarks, setNegativeMarks] = useState(1);
+        const [timeLimit, setTimeLimit] = useState(60);
+
+        const handleStart = () => {
+          if (!name.trim() || numQ < 1) return alert("Invalid settings");
+          onStartExam({
+            examName: name.trim(),
+            numQuestions: parseInt(numQ),
+            numOptions: parseInt(numOptions),
+            positiveMarks: parseFloat(positiveMarks),
+            negativeMarks: parseFloat(negativeMarks),
+            timeLimit: parseInt(timeLimit) * 60,
+          });
+        };
+
+        return (
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 space-y-5 fade-in">
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Exam Name</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Physics Chapter 1" />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Questions</label>
+                <input type="number" min="1" value={numQ} onChange={e => setNumQ(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Options</label>
+                <select value={numOptions} onChange={e => setNumOptions(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <option value={4}>4 (A-D)</option>
+                  <option value={5}>5 (A-E)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Time (m)</label>
+                <input type="number" value={timeLimit} onChange={e => setTimeLimit(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-green-600 uppercase">Correct (+)</label>
+                <input type="number" value={positiveMarks} onChange={e => setPositiveMarks(e.target.value)} className="w-full mt-1 p-3 bg-green-50 border border-green-200 text-green-800 font-bold rounded-lg" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-red-600 uppercase">Wrong (-)</label>
+                <input type="number" value={negativeMarks} onChange={e => setNegativeMarks(e.target.value)} className="w-full mt-1 p-3 bg-red-50 border border-red-200 text-red-800 font-bold rounded-lg" />
+              </div>
+            </div>
+
+            <button onClick={handleStart} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+              <FileText size={20} /> Start Exam
+            </button>
+          </div>
+        );
+      };
+
+      // 1.2 PROGRESS DASHBOARD
+      const ProgressDashboard = ({ savedResults }) => {
+        // Extract unique exam names
+        const examNames = useMemo(() => [...new Set(savedResults.map(r => r.examName))].sort(), [savedResults]);
+        const [selectedExam, setSelectedExam] = useState(examNames.length > 0 ? examNames[0] : '');
+
+        // Filter and sort results for the selected exam
+        const examData = useMemo(() => {
+          if (!selectedExam) return [];
+          return savedResults
+            .filter(r => r.examName === selectedExam)
+            .sort((a, b) => a.timestamp - b.timestamp); // Oldest to Newest for chart
+        }, [selectedExam, savedResults]);
+
+        // Metrics
+        const metrics = useMemo(() => {
+          if (examData.length === 0) return null;
+          const scores = examData.map(d => d.score);
+          const maxScore = Math.max(...scores);
+          const avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          const latest = examData[examData.length - 1];
+          const improvement = examData.length > 1 ? (latest.score - examData[0].score).toFixed(1) : 0;
+          return { maxScore, avgScore, attempts: examData.length, improvement };
+        }, [examData]);
+
+        // Chart Data
+        const chartData = useMemo(() => {
+            return examData.map(d => ({
+                value: d.score,
+                label: new Date(d.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            }));
+        }, [examData]);
+
+        if (savedResults.length === 0) return <div className="text-center p-10 text-gray-500">No exams taken yet. Go take one!</div>;
+
+        return (
+          <div className="space-y-6 fade-in">
+            {/* Selector */}
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Select Exam to Analyze</label>
+                <select 
+                    value={selectedExam} 
+                    onChange={e => setSelectedExam(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 font-semibold"
+                >
+                    {examNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+            </div>
+
+            {/* Metrics Grid */}
+            {metrics && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <div className="text-xs text-gray-400 font-bold uppercase">Attempts</div>
+                        <div className="text-2xl font-bold text-gray-800">{metrics.attempts}</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <div className="text-xs text-gray-400 font-bold uppercase">Avg Score</div>
+                        <div className="text-2xl font-bold text-blue-600">{metrics.avgScore}</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <div className="text-xs text-gray-400 font-bold uppercase">Best Score</div>
+                        <div className="text-2xl font-bold text-green-600">{metrics.maxScore}</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <div className="text-xs text-gray-400 font-bold uppercase">Trend</div>
+                        <div className={`text-2xl font-bold ${metrics.improvement >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {metrics.improvement > 0 ? '+' : ''}{metrics.improvement}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Chart */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg">
+                <h3 className="text-sm font-bold text-gray-600 mb-4 flex items-center gap-2"><Activity size={18}/> Performance Trend</h3>
+                <SimpleLineChart data={chartData} />
+            </div>
+
+            {/* Recent History List */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+                <div className="p-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-600 text-sm">Attempt History</div>
+                <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                    {examData.slice().reverse().map((attempt, idx) => (
+                        <div key={idx} className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors">
+                            <div>
+                                <div className="text-xs text-gray-400">{new Date(attempt.timestamp).toLocaleString()}</div>
+                                <div className="text-sm font-medium text-gray-700">
+                                    Acc: {Math.round((attempt.correct / (attempt.correct + attempt.incorrect || 1)) * 100)}%
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-xl font-bold text-blue-600">{attempt.score}</div>
+                                <div className="text-xs text-gray-400">marks</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </div>
+        );
+      };
+
+
+      // 2. EXAM SCREEN
       const ExamScreen = ({ config, onFinishExam }) => {
         const { examName, numQuestions, numOptions, timeLimit } = config;
         const [answers, setAnswers] = useState(Array(numQuestions).fill(null));
@@ -230,432 +331,227 @@
         useEffect(() => {
           if (isFinished) return;
           const timer = setInterval(() => {
-            setTimeLeft(prev => {
-              if (prev <= 1) {
-                clearInterval(timer);
-                handleTimeUp();
-                return 0;
-              }
-              return prev - 1;
+            setTimeLeft(p => {
+              if (p <= 1) { clearInterval(timer); handleFinish(); return 0; }
+              return p - 1;
             });
           }, 1000);
           return () => clearInterval(timer);
         }, [isFinished]);
 
-        const handleTimeUp = () => {
-          setIsFinished(true);
-          onFinishExam(answers);
-        };
+        const handleFinish = () => { setIsFinished(true); onFinishExam(answers); };
+        const formatTime = (s) => new Date(s * 1000).toISOString().substr(11, 8).replace(/^00:/, '');
 
-        const formatTime = (seconds) => {
-          const h = Math.floor(seconds / 3600);
-          const m = Math.floor((seconds % 3600) / 60);
-          const s = seconds % 60;
-          
-          if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-          return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        };
-
-        const handleBubbleClick = (qIndex, optIndex) => {
+        const toggleAnswer = (qIdx, optIdx) => {
           if (isFinished) return;
-          
           setAnswers(prev => {
-            const newAnswers = [...prev];
-            newAnswers[qIndex] = newAnswers[qIndex] === optIndex ? null : optIndex;
-            return newAnswers;
+            const next = [...prev];
+            next[qIdx] = next[qIdx] === optIdx ? null : optIdx;
+            return next;
           });
         };
 
-        const attemptedCount = answers.filter(a => a !== null).length;
-        const unattemptedCount = numQuestions - attemptedCount;
-
         return (
           <div className="h-screen flex flex-col bg-gray-50">
-            <header className="bg-white shadow-md z-10 flex-shrink-0 px-4 py-3 flex justify-between items-center border-b border-gray-200">
-              <h2 className="font-bold text-gray-800 truncate text-lg">{examName}</h2>
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:flex text-sm text-gray-600">
-                   Attempted: <strong className='ml-1 text-blue-600'>{attemptedCount}</strong>
-                </div>
-                <div className={`flex items-center gap-2 font-mono text-xl font-bold p-1 px-2 rounded-lg ${timeLeft < 300 ? 'text-red-600 bg-red-50' : 'text-blue-600 bg-blue-50'}`}>
-                  <Clock size={20} />
-                  {formatTime(timeLeft)}
-                </div>
+            <header className="bg-white shadow-sm z-10 px-4 py-3 flex justify-between items-center">
+              <h2 className="font-bold text-gray-800 truncate text-lg max-w-[50%]">{examName}</h2>
+              <div className={`flex items-center gap-2 font-mono text-lg font-bold px-3 py-1 rounded-lg ${timeLeft < 300 ? 'text-red-600 bg-red-50 animate-pulse' : 'text-blue-600 bg-blue-50'}`}>
+                <Clock size={18} /> {formatTime(timeLeft)}
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8">
-              <p className="text-center text-gray-600 mb-6 font-medium">
-                <span className="text-blue-600 font-bold mr-1">{numQuestions}</span> questions | 
-                Marking: <span className="text-green-600">+{config.positiveMarks}</span> / <span className="text-red-600">-{config.negativeMarks}</span>
-              </p>
-
-              <div className="max-w-4xl mx-auto">
-                <div className="grid grid-cols-6 text-xs text-gray-500 font-bold mb-3 text-center sticky top-0 bg-gray-50 pt-2 pb-1 z-10 border-b border-gray-200">
-                  <span>Q.</span>
-                  {OMR_OPTIONS.slice(0, numOptions).map(opt => <span key={opt}>{opt}</span>)}
-                </div>
-                
-                <div className="grid grid-cols-1 gap-1">
-                  {Array.from({ length: numQuestions }).map((_, index) => {
-                    const selectedOptionIndex = answers[index];
-                    
-                    return (
-                      <div key={index} className="grid grid-cols-6 items-center py-2 border-b border-gray-100 hover:bg-white rounded transition-colors">
-                        <span className="text-sm font-bold text-gray-600 text-center">{index + 1}</span>
-                        {OMR_OPTIONS.slice(0, numOptions).map((opt, optIndex) => {
-                          const isSelected = selectedOptionIndex === optIndex;
-                          
-                          let bubbleClass = "w-8 h-8 rounded-full border flex items-center justify-center text-sm font-medium transition-all duration-150 cursor-pointer mx-auto ";
-                          
-                          bubbleClass += isSelected 
-                            ? "bg-blue-600 border-blue-600 text-white shadow-md transform scale-105" 
-                            : "bg-white border-gray-300 text-gray-400 hover:border-gray-500";
-
-                          return (
-                            <div 
-                              key={optIndex} 
-                              onClick={() => handleBubbleClick(index, optIndex)}
-                              className={bubbleClass}
-                            >
-                              {opt}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto w-full">
+              <div className="sticky top-0 bg-gray-50/95 backdrop-blur pt-2 pb-2 z-10 grid grid-cols-[30px_1fr] md:grid-cols-[40px_1fr] gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 mb-2">
+                <span className="text-center">#</span>
+                <div className="flex justify-around">{OMR_OPTIONS.slice(0, numOptions).map(o => <span key={o}>{o}</span>)}</div>
+              </div>
+              
+              <div className="space-y-2">
+                {Array.from({ length: numQuestions }).map((_, qIdx) => (
+                  <div key={qIdx} className="grid grid-cols-[30px_1fr] md:grid-cols-[40px_1fr] gap-4 items-center bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:border-blue-200 transition-colors">
+                    <span className="font-bold text-gray-500 text-center text-sm">{qIdx + 1}</span>
+                    <div className="flex justify-around">
+                      {OMR_OPTIONS.slice(0, numOptions).map((opt, oIdx) => {
+                        const selected = answers[qIdx] === oIdx;
+                        return (
+                          <button 
+                            key={oIdx}
+                            onClick={() => toggleAnswer(qIdx, oIdx)}
+                            className={`w-9 h-9 md:w-10 md:h-10 rounded-full border flex items-center justify-center text-sm font-bold transition-all ${selected ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-110' : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400'}`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <footer className="flex-shrink-0 p-4 bg-white border-t border-gray-200 shadow-xl">
-              <button 
-                onClick={() => onFinishExam(answers)}
-                disabled={isFinished}
-                className="w-full py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition-colors shadow-lg disabled:opacity-50"
-              >
-                {isFinished ? 'Submitting...' : `End Exam & Proceed to Correction (${unattemptedCount} Skipped)`}
-              </button>
+            <footer className="p-4 bg-white border-t shadow-lg">
+              <button onClick={handleFinish} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors">Submit Exam</button>
             </footer>
           </div>
         );
       };
 
-      const CorrectionScreen = ({ config, userAnswers, onCompleteCorrection }) => {
-        const { numQuestions, numOptions } = config;
-        const attemptedQuestions = userAnswers.map(ans => ans !== null);
+      // 3. CORRECTION SCREEN
+      const CorrectionScreen = ({ config, userAnswers, onComplete }) => {
+        const { numQuestions } = config;
+        const [correction, setCorrection] = useState(Array(numQuestions).fill('unmarked'));
         
-        const [correctionKey, setCorrectionKey] = useState(
-          Array(numQuestions).fill('unmarked')
-        );
-
-        const handleCorrection = (qIndex, status) => {
-          setCorrectionKey(prev => {
-            const newKey = [...prev];
-            newKey[qIndex] = newKey[qIndex] === status ? 'unmarked' : status;
-            return newKey;
+        const toggleMark = (idx, type) => {
+          setCorrection(prev => {
+            const next = [...prev];
+            next[idx] = next[idx] === type ? 'unmarked' : type;
+            return next;
           });
         };
 
-        const correctionCount = correctionKey.filter(s => s !== 'unmarked').length;
-        const totalAttempted = attemptedQuestions.filter(a => a).length;
-        const totalUnattempted = numQuestions - totalAttempted;
-
-        const handleFinalize = () => {
-          let allMarked = true;
-          for (let i = 0; i < numQuestions; i++) {
-              if (attemptedQuestions[i] && correctionKey[i] === 'unmarked') {
-                  allMarked = false;
-                  break;
-              }
-          }
-
-          if (!allMarked) {
-              alert("Please manually mark all attempted questions as 'Correct' or 'Incorrect' before finalizing the result.");
-              return;
-          }
-          onCompleteCorrection(correctionKey);
+        const finalize = () => {
+          const attemptedIndices = userAnswers.map((a, i) => a !== null ? i : -1).filter(i => i !== -1);
+          const allMarked = attemptedIndices.every(i => correction[i] !== 'unmarked');
+          if (!allMarked) return alert("Please mark all attempted questions as Correct or Incorrect.");
+          onComplete(correction);
         };
 
         return (
           <div className="h-screen flex flex-col bg-gray-50">
-            <header className="bg-white shadow-md z-10 flex-shrink-0 px-4 py-3 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <RotateCcw size={22} className='text-red-500' /> Step 2: Manual Correction
-              </h2>
-              <p className='text-sm text-gray-500 mt-1'>Check your answers against the key and mark them below.</p>
+             <header className="bg-white shadow-sm px-4 py-3 flex justify-between items-center">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2"><RotateCcw size={18} className="text-orange-500"/> Check Answers</h2>
+              <button onClick={finalize} className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">Finish</button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8">
-              <div className="max-w-4xl mx-auto">
-                
-                <div className="p-4 mb-6 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 rounded-lg shadow-sm">
-                  <p className='font-bold text-sm'>Correction Status: </p>
-                  <p className='text-xs'>
-                      Attempted: <strong className='text-yellow-900'>{totalAttempted}</strong> | 
-                      Unattempted (Skipped): <strong className='text-yellow-900'>{totalUnattempted}</strong> |
-                      Corrected: <strong className='text-green-700'>{correctionCount}</strong>
-                  </p>
-                  <p className='mt-2 text-xs font-semibold'>
-                      Note: **Skipped** questions (unattempted by you) will automatically score 0. You only need to correct the <strong className='underline'>Attempted</strong> questions.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {Array.from({ length: numQuestions }).map((_, index) => {
-                    const status = correctionKey[index];
-                    const attempted = attemptedQuestions[index];
-                    const selectedOptionIndex = userAnswers[index];
-                    
-                    const baseClass = "p-3 rounded-lg shadow-sm flex items-center justify-between transition-all duration-200";
-                    const bgColor = attempted ? (
-                        status === 'correct' ? 'bg-green-100 border-green-300' : 
-                        status === 'incorrect' ? 'bg-red-100 border-red-300' : 
-                        'bg-white border-gray-200'
-                    ) : 'bg-gray-100 border-gray-300 opacity-70 cursor-not-allowed';
-
-                    const pulseEffect = attempted && status === 'unmarked' ? 'animate-pulse' : '';
-
-                    return (
-                      <div key={index} className={`${baseClass} ${bgColor} ${pulseEffect} border`}>
-                        
-                        <div className='flex items-center gap-4'>
-                          <span className="text-lg font-extrabold text-gray-700 w-8 text-center">{index + 1}</span>
-                          
-                          <div className='flex flex-col text-sm'>
-                             <p className='text-gray-600'>Your Answer: 
-                                 <span className={`font-bold ml-1 ${attempted ? 'text-blue-600' : 'text-gray-400'}`}>
-                                     {attempted ? OMR_OPTIONS[selectedOptionIndex] : 'SKIPPED'}
-                                 </span>
-                             </p>
-                          </div>
-                        </div>
-
-                        {attempted ? (
-                          <div className='flex gap-2'>
-                              <button
-                                  onClick={() => handleCorrection(index, 'correct')}
-                                  className={`p-2 rounded-full text-white transition-colors flex items-center gap-1 text-sm font-semibold ${
-                                      status === 'correct' ? 'bg-green-600 shadow-md' : 'bg-green-400 hover:bg-green-500'
-                                  }`}
-                              >
-                                  <CheckCircle size={18} /> Correct
-                              </button>
-                              <button
-                                  onClick={() => handleCorrection(index, 'incorrect')}
-                                  className={`p-2 rounded-full text-white transition-colors flex items-center gap-1 text-sm font-semibold ${
-                                      status === 'incorrect' ? 'bg-red-600 shadow-md' : 'bg-red-400 hover:bg-red-500'
-                                  }`}
-                              >
-                                  <XCircle size={18} /> Incorrect
-                              </button>
-                          </div>
-                        ) : (
-                          <span className='text-xs text-gray-500 italic'>Skipped (0 Marks)</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto w-full space-y-3">
+              <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg text-sm text-orange-800 flex gap-2">
+                 <span>ℹ️</span> 
+                 <p>Compare your OMR with the answer key. Mark <strong>Attempted</strong> questions as Correct/Incorrect. Skipped questions are auto-graded as 0.</p>
               </div>
-            </div>
 
-            <footer className="flex-shrink-0 p-4 bg-white border-t border-gray-200 shadow-xl">
-              <button 
-                onClick={handleFinalize}
-                className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
-              >
-                <Award size={20} className='mr-2 inline' /> Finalize Result
-              </button>
-            </footer>
+              {userAnswers.map((ans, idx) => {
+                const attempted = ans !== null;
+                const status = correction[idx];
+                return (
+                  <div key={idx} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${attempted ? 'bg-white border-gray-200' : 'bg-gray-100 border-transparent opacity-60'}`}>
+                    <div className="flex items-center gap-4">
+                      <span className="font-bold text-gray-500 w-6 text-center">{idx+1}</span>
+                      <div className="text-sm">
+                        <span className="text-gray-400 mr-2">You:</span>
+                        <span className={`font-bold ${attempted ? 'text-blue-600' : 'text-gray-400 italic'}`}>
+                          {attempted ? OMR_OPTIONS[ans] : 'Skipped'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {attempted && (
+                      <div className="flex gap-2">
+                        <button onClick={() => toggleMark(idx, 'correct')} className={`p-2 rounded-lg transition-colors ${status === 'correct' ? 'bg-green-500 text-white shadow' : 'bg-gray-100 text-gray-300 hover:bg-green-100 hover:text-green-500'}`}>
+                          <CheckCircle size={20} />
+                        </button>
+                        <button onClick={() => toggleMark(idx, 'incorrect')} className={`p-2 rounded-lg transition-colors ${status === 'incorrect' ? 'bg-red-500 text-white shadow' : 'bg-gray-100 text-gray-300 hover:bg-red-100 hover:text-red-500'}`}>
+                          <XCircle size={20} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         );
       };
 
-      const StatBox = ({ label, value, color }) => (
-          <div className={`p-4 rounded-lg ${color}`}>
-              <div className="text-sm font-medium uppercase tracking-wider">{label}</div>
-              <div className="text-3xl font-extrabold mt-1">{value}</div>
-          </div>
-      );
+      // 4. RESULT SCREEN
+      const ResultScreen = ({ result, onHome }) => {
+        const { score, correct, incorrect, unattempted, totalQuestions, examName } = result;
+        const totalAttempted = correct + incorrect;
+        const accuracy = totalAttempted ? Math.round((correct / totalAttempted) * 100) : 0;
 
-      const ResultScreen = ({ result, onNewExam }) => {
-          const { score, correct, incorrect, unattempted, totalQuestions, examName, positiveMarks, negativeMarks } = result;
-          const totalAttempted = correct + incorrect;
-          const maxScore = totalQuestions * positiveMarks;
-          const accuracy = totalAttempted > 0 ? Math.round((correct / totalAttempted) * 100) : 0;
+        return (
+          <div className="max-w-xl mx-auto p-6 md:p-10 fade-in">
+             <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+                <div className="bg-blue-600 p-8 text-center text-white relative overflow-hidden">
+                   <div className="relative z-10">
+                     <h2 className="opacity-90 font-medium mb-1">{examName}</h2>
+                     <div className="text-6xl font-extrabold mb-2">{score}</div>
+                     <div className="text-sm opacity-80">Total Score</div>
+                   </div>
+                   <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black/10"></div>
+                </div>
 
-          return (
-              <div className="p-4 md:p-8 max-w-xl mx-auto">
-                  <h1 className="text-3xl font-extrabold text-green-700 mb-6 flex items-center gap-3">
-                      <Award size={28} /> Final Score
-                  </h1>
-
-                  <div className="bg-white p-6 rounded-xl shadow-2xl border-t-4 border-green-500">
-                      <h2 className="text-2xl font-bold text-gray-800 mb-4">{examName}</h2>
-                      <p className="text-sm text-gray-500 mb-6">Total Questions: {totalQuestions} | Max Score: {maxScore}</p>
-                      
-                      <div className="p-6 bg-green-50 rounded-lg text-center mb-6 border border-green-200">
-                          <div className="text-sm font-semibold text-green-700 uppercase tracking-wider">Your Total Score</div>
-                          <div className="text-6xl font-extrabold text-green-900 mt-2">{score}</div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                          <StatBox label="Correct" value={correct} color="bg-blue-100 text-blue-800" />
-                          <StatBox label="Incorrect" value={incorrect} color="bg-red-100 text-red-800" />
-                          <StatBox label="Accuracy" value={`${accuracy}%`} color="bg-purple-100 text-purple-800" />
-                          <StatBox label="Skipped/Unattempted" value={unattempted} color="bg-gray-100 text-gray-800" />
-                      </div>
-
-                      <div className="mt-6 p-4 text-xs bg-gray-50 rounded-lg border border-gray-200">
-                          <p className='font-bold text-gray-700 mb-1'>Marking Scheme Applied:</p>
-                          <p className='text-green-600'>+ {positiveMarks} marks for each Correct Answer</p>
-                          <p className='text-red-600'>- {negativeMarks} marks deduction for each Incorrect Answer</p>
-                          <p className='text-gray-500'>0 marks for Unattempted Questions</p>
-                      </div>
+                <div className="p-6 grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-green-50 rounded-2xl border border-green-100 text-center">
+                    <div className="text-green-800 text-2xl font-bold">{correct}</div>
+                    <div className="text-xs text-green-600 font-bold uppercase">Correct</div>
                   </div>
+                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100 text-center">
+                    <div className="text-red-800 text-2xl font-bold">{incorrect}</div>
+                    <div className="text-xs text-red-600 font-bold uppercase">Incorrect</div>
+                  </div>
+                  <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100 text-center col-span-2 flex justify-between items-center px-8">
+                     <div>
+                       <div className="text-purple-900 text-xl font-bold">{accuracy}%</div>
+                       <div className="text-xs text-purple-600 font-bold uppercase">Accuracy</div>
+                     </div>
+                     <div className="h-8 w-px bg-purple-200"></div>
+                     <div>
+                       <div className="text-gray-700 text-xl font-bold">{unattempted}</div>
+                       <div className="text-xs text-gray-500 font-bold uppercase">Skipped</div>
+                     </div>
+                  </div>
+                </div>
 
-                  <button
-                      onClick={onNewExam}
-                      className="w-full mt-6 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl transition-colors shadow-lg shadow-blue-200"
-                  >
-                      Start New Exam
+                <div className="p-6 pt-0">
+                  <button onClick={onHome} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:bg-black transition-all">
+                    Back to Home
                   </button>
-              </div>
-          );
+                </div>
+             </div>
+          </div>
+        );
       };
 
-      const PastResults = ({ savedResults }) => {
-          const [results, setResults] = useState(savedResults);
-
-          const deleteResult = (indexToDelete) => {
-              if (!window.confirm("Are you sure you want to delete this result? This action cannot be undone.")) return;
-              
-              // Adjust for reverse mapping display (the display is reversed, so we need to find the real index)
-              // Actually, let's just filter by timestamp since it's likely unique, or handle index carefully
-              const actualIndex = results.length - 1 - indexToDelete;
-              
-              // Simpler approach: filter out the item directly from state copy
-              const newResults = [...results];
-              newResults.splice(actualIndex, 1);
-              
-              setResults(newResults);
-              saveResults(newResults);
-          };
-
-          if (results.length === 0) {
-              return (
-                  <div className="mt-8 p-4 text-center text-gray-500 italic border-t pt-4">
-                      No past exam results saved locally yet.
-                  </div>
-              );
-          }
-
-          return (
-              <div className="mt-8 pt-4 border-t border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">Past Performance ({results.length})</h3>
-                  <div className="space-y-3">
-                      {results.slice().reverse().map((res, index) => (
-                          <div key={res.timestamp} className="p-4 bg-white rounded-lg shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition-shadow">
-                              <div>
-                                  <p className="font-semibold text-gray-800">{res.examName} ({res.totalQuestions} Qs)</p>
-                                  <p className="text-sm text-gray-500">Date: {new Date(res.timestamp).toLocaleDateString()}</p>
-                              </div>
-                              <div className='flex items-center gap-3'>
-                                  <div className="text-2xl font-extrabold text-blue-600">{res.score}</div>
-                                  <button 
-                                      onClick={() => deleteResult(index)} 
-                                      className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50"
-                                      aria-label="Delete result"
-                                  >
-                                      <Trash2 size={20} />
-                                  </button>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-          );
-      };
-
-      function OMRGraderApp() {
-        const [appState, setAppState] = useState('setup'); 
-        const [examConfig, setExamConfig] = useState(null);
-        const [userAnswers, setUserAnswers] = useState(null);
-        const [finalResult, setFinalResult] = useState(null);
+      // --- MAIN APP ---
+      function App() {
+        const [view, setView] = useState('setup');
+        const [config, setConfig] = useState(null);
+        const [answers, setAnswers] = useState(null);
+        const [result, setResult] = useState(null);
         const [savedResults, setSavedResults] = useState(loadResults());
 
-        const handleStartExam = (config) => {
-          setExamConfig(config);
-          setAppState('active');
-        };
-
-        const handleFinishExam = (answers) => {
-          setUserAnswers(answers);
-          setAppState('correction');
-        };
-
-        const handleCompleteCorrection = (correctionKey) => {
-          const result = calculateFinalScore(
-            userAnswers, 
-            correctionKey, 
-            examConfig.positiveMarks, 
-            examConfig.negativeMarks
-          );
-
-          const newResult = {
-            ...result,
-            examName: examConfig.examName,
-            timestamp: Date.now(),
-            config: examConfig,
-            userAnswers,
-            correctionKey,
-          };
+        const startExam = (cfg) => { setConfig(cfg); setView('exam'); };
+        const finishExam = (ans) => { setAnswers(ans); setView('correction'); };
+        
+        const completeCorrection = (key) => {
+          const res = calculateFinalScore(answers, key, config.positiveMarks, config.negativeMarks);
+          const finalRes = { ...res, examName: config.examName, timestamp: Date.now() };
           
-          const updatedResults = [...savedResults, newResult];
-          setSavedResults(updatedResults);
-          saveResults(updatedResults);
-
-          setFinalResult(newResult);
-          setAppState('result');
+          const newHistory = [...savedResults, finalRes];
+          setSavedResults(newHistory);
+          saveResults(newHistory);
+          
+          setResult(finalRes);
+          setView('result');
         };
 
-        const handleNewExam = () => {
-          setExamConfig(null);
-          setUserAnswers(null);
-          setFinalResult(null);
-          setAppState('setup');
-        };
-
-        const renderContent = () => {
-          switch (appState) {
-            case 'setup':
-              return <SetupScreen onStartExam={handleStartExam} savedResults={savedResults} />;
-            case 'active':
-              return <ExamScreen config={examConfig} onFinishExam={handleFinishExam} />;
-            case 'correction':
-              return <CorrectionScreen 
-                        config={examConfig} 
-                        userAnswers={userAnswers} 
-                        onCompleteCorrection={handleCompleteCorrection} 
-                     />;
-            case 'result':
-              return <ResultScreen result={finalResult} onNewExam={handleNewExam} />;
-            default:
-              return <SetupScreen onStartExam={handleStartExam} savedResults={savedResults} />;
-          }
+        const goHome = () => {
+          setConfig(null); setAnswers(null); setResult(null);
+          setView('setup');
         };
 
         return (
-          <div className="min-h-screen font-sans antialiased bg-gray-50">
-            {renderContent()}
+          <div className="min-h-screen text-gray-800 font-sans">
+            {view === 'setup' && <SetupScreen onStartExam={startExam} savedResults={savedResults} />}
+            {view === 'exam' && <ExamScreen config={config} onFinishExam={finishExam} />}
+            {view === 'correction' && <CorrectionScreen config={config} userAnswers={answers} onComplete={completeCorrection} />}
+            {view === 'result' && <ResultScreen result={result} onHome={goHome} />}
           </div>
         );
       }
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<OMRGraderApp />);
+      root.render(<App />);
     </script>
   </body>
 </html>
