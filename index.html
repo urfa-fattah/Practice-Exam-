@@ -3,8 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OMR Master Pro | Urfa Hasan Fattah</title>
+    <title>OMR Master Pro: Exam Practice & Advanced Analytics by Urfa Hasan Fattah</title>
     
+    <meta name="description" content="OMR Master Pro is a professional practice and advanced analytics suite for OMR-based competitive exams. Track scores, time, accuracy, and identify problem areas." />
+    <meta name="keywords" content="OMR, exam practice, analytics, mock test, competitive exam, OMR Master Pro, scoring" />
+    <meta name="author" content="Urfa Hasan Fattah" />
+    <link rel="canonical" href="[YOUR_CANONICAL_URL]" /> 
+    
+    <link rel="manifest" href="/manifest.json"> 
+    <meta name="theme-color" content="#2563eb"> 
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+              console.log('SW registered: ', registration);
+            }).catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+          });
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -58,13 +77,19 @@
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       ::-webkit-scrollbar-track { background: transparent; }
+
+      /* OMR Bubble Hover/Focus Fix for Accessibility */
+      .omr-bubble:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect, useMemo } = React;
+      const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
       // --- ICONS ---
       const IconWrapper = ({ children, size = 20, className = "" }) => (
@@ -85,7 +110,14 @@
         Facebook: (p) => <IconWrapper {...p}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></IconWrapper>,
         Send: (p) => <IconWrapper {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></IconWrapper>,
         ChevronRight: (p) => <IconWrapper {...p}><polyline points="9 18 15 12 9 6"/></IconWrapper>,
-        Timer: (p) => <IconWrapper {...p}><path d="M10 2h4"/><path d="M12 14v-4"/><path d="M4 13a8 8 0 0 1 8-7 8 8 0 1 1-5.3 14L4 17.6"/><path d="M9 17H4v5"/></IconWrapper>
+        Timer: (p) => <IconWrapper {...p}><path d="M10 2h4"/><path d="M12 14v-4"/><path d="M4 13a8 8 0 0 1 8-7 8 8 0 1 1-5.3 14L4 17.6"/><path d="M9 17H4v5"/></IconWrapper>,
+        FileText: (p) => <IconWrapper {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></IconWrapper>,
+        RotateCw: (p) => <IconWrapper {...p}><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.79-2.91L3 18"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.79 2.91L21 6"/><path d="M12 3v5"/><path d="M12 21v-5"/></IconWrapper>,
+        Repeat: (p) => <IconWrapper {...p}><path d="M17 1l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></IconWrapper>,
+        Download: (p) => <IconWrapper {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconWrapper>,
+        Upload: (p) => <IconWrapper {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></IconWrapper>,
+        Target: (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconWrapper>,
+        Activity: (p) => <IconWrapper {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></IconWrapper>
       };
 
       // --- REUSABLE UI COMPONENTS ---
@@ -107,68 +139,213 @@
         <div className={`glass-card p-6 ${className}`}>{children}</div>
       );
 
-      const Button = ({ onClick, variant = "primary", className = "", children, ...props }) => {
+      const Button = ({ onClick, variant = "primary", className = "", children, disabled = false, ...props }) => {
         const base = "px-6 py-3 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 transform active:scale-95";
         const styles = {
           primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 hover:shadow-blue-300",
           secondary: "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300",
           danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-200",
-          success: "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-200"
+          success: "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-200",
+          info: "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-200"
         };
-        return <button onClick={onClick} className={`${base} ${styles[variant]} ${className}`} {...props}>{children}</button>;
+        const disabledStyle = "opacity-60 cursor-not-allowed active:scale-100 shadow-none";
+        
+        return <button onClick={onClick} className={`${base} ${styles[variant]} ${className} ${disabled ? disabledStyle : ''}`} disabled={disabled} {...props}>{children}</button>;
       };
 
       // --- LOGIC & STORAGE ---
       const OMR_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
-      const STORAGE_KEY = 'omr_master_v3_pro'; 
+      const STORAGE_KEY = 'omr_master_v8_pro_analytics'; // Updated Storage Key for version 8
+      const TEMP_STORAGE_KEY = 'omr_master_v8_temp_session'; // New key for auto-save
 
+      // LocalStorage Helper for Analytics
       const loadResults = () => {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } 
-        catch (e) { return []; }
+        try { 
+           const data = localStorage.getItem(STORAGE_KEY);
+           if (!data) return [];
+           const results = JSON.parse(data);
+           return Array.isArray(results) ? results : []; 
+        } 
+        catch (e) { 
+           console.error("Could not load data from localStorage", e);
+           alert("Warning: Analytics data is corrupt and could not be loaded. Starting fresh.");
+           localStorage.removeItem(STORAGE_KEY);
+           return []; 
+        }
       };
 
       const saveResults = (results) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+        try {
+           localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+        } catch (e) {
+           console.error("Could not save data to localStorage", e);
+           alert("Warning: Could not save results. Local storage might be full or blocked.");
+        }
+      };
+      
+      // LocalStorage Helper for Temporary Exam Session
+      const saveTempSession = (session) => {
+          try {
+              localStorage.setItem(TEMP_STORAGE_KEY, JSON.stringify(session));
+          } catch(e) {
+              console.warn("Could not auto-save session.", e);
+          }
       };
 
-      const calculateScore = (answers, key, pos, neg, timeTaken) => {
+      const loadTempSession = () => {
+          try {
+              const data = localStorage.getItem(TEMP_STORAGE_KEY);
+              return data ? JSON.parse(data) : null;
+          } catch(e) {
+              return null;
+          }
+      };
+
+      const clearTempSession = () => {
+          localStorage.removeItem(TEMP_STORAGE_KEY);
+      };
+
+      const calculateScore = (answers, key, pos, neg, timeTaken, config) => {
         let correct = 0, incorrect = 0, unattempted = 0;
         let mistakes = [];
+        let skippedQNums = [];
+        let questionStatuses = []; // Detailed status array (NEW)
 
         answers.forEach((ans, i) => {
-          const status = key[i];
-          if (status === 'correct') correct++;
-          else if (status === 'incorrect') {
-            incorrect++;
-            mistakes.push(i + 1);
-          } else unattempted++;
+          const status = key[i]; // 'correct', 'incorrect', or 'unmarked'
+          const questionNumber = i + 1;
+          let calculatedStatus = 'unattempted';
+          
+          if (ans === null) {
+            unattempted++;
+            skippedQNums.push(questionNumber);
+          } else {
+            // Attempted
+            if (status === 'correct') {
+              correct++;
+              calculatedStatus = 'correct';
+            } else if (status === 'incorrect') {
+              incorrect++;
+              mistakes.push(questionNumber);
+              calculatedStatus = 'incorrect';
+            } else {
+                // Should not happen if pre-check is done, but fallback to incorrect if attempted but unmarked
+                incorrect++;
+                mistakes.push(questionNumber);
+                calculatedStatus = 'incorrect';
+            }
+          }
+          questionStatuses.push(calculatedStatus);
         });
 
         const rawScore = (correct * pos) - (incorrect * neg);
         const attempted = correct + incorrect;
+        const totalPossibleScore = config.q * config.pos; 
         
         return { 
           score: parseFloat(rawScore.toFixed(2)), 
-          correct, incorrect, unattempted, mistakes,
+          totalPossibleScore: totalPossibleScore, 
+          correct, incorrect, unattempted, 
+          skipped: unattempted, 
+          mistakes,
+          skippedQNums, 
           totalQuestions: answers.length, 
           timeTakenSeconds: timeTaken,
           accuracy: attempted ? Math.round((correct / attempted) * 100) : 0,
-          avgTimePerQ: attempted ? (timeTaken / attempted).toFixed(1) : 0
+          avgTimePerQ: attempted ? parseFloat((timeTaken / attempted).toFixed(1)) : 0,
+          // Storing full data
+          answers: answers, 
+          key: key, 
+          config: config,
+          questionStatuses: questionStatuses // NEW: Store detailed status array
         };
       };
 
+      // Utility for calculating average score
+      const calculateAverageScore = (data) => {
+        if (!data.length) return 0;
+        const validScores = data.filter(d => typeof d.score === 'number' && !isNaN(d.score));
+        if (!validScores.length) return 0;
+
+        const totalScore = validScores.reduce((sum, d) => sum + d.score, 0);
+        return parseFloat((totalScore / validScores.length).toFixed(2));
+      }
+      
+      // --- DATA MANAGEMENT UTILITIES (PREVIOUSLY ADDED) ---
+      const useDataManagement = (savedResults, setSavedResults) => {
+          
+          const exportData = () => {
+              if (!savedResults.length) {
+                  alert("No data to export!");
+                  return;
+              }
+              const dataStr = JSON.stringify(savedResults, null, 2);
+              const blob = new Blob([dataStr], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `omr_master_analytics_${new Date().toISOString().slice(0, 10)}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+          };
+
+          const importData = (event) => {
+              const file = event.target.files[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  try {
+                      const importedData = JSON.parse(e.target.result);
+                      if (!Array.isArray(importedData)) {
+                          throw new Error("Invalid JSON structure. Expected an array.");
+                      }
+                      
+                      const isValid = importedData.every(item => 
+                          typeof item.score === 'number' && typeof item.timestamp === 'number' && item.examName
+                      );
+
+                      if (!isValid) {
+                          throw new Error("Imported data structure is missing required result fields.");
+                      }
+                      
+                      const mergedData = [...savedResults, ...importedData];
+                      
+                      setSavedResults(mergedData);
+                      saveResults(mergedData);
+                      alert(`Successfully imported ${importedData.length} records. Total records: ${mergedData.length}`);
+                      event.target.value = '';
+
+                  } catch (error) {
+                      console.error("Import failed:", error);
+                      alert(`Data Import Failed: ${error.message}`);
+                  }
+              };
+              reader.readAsText(file);
+          };
+
+          return { exportData, importData };
+      };
+
+
       // --- CHARTS (SVG) ---
       const LineChart = ({ data, dataKey, color, label }) => {
-        if (!data || data.length < 2) return <div className="h-32 flex items-center justify-center text-slate-400 text-sm italic bg-slate-50 rounded-xl">Play at least 2 exams to see {label} trends</div>;
+        if (!data || data.length < 2) return <div className="h-32 flex items-center justify-center text-slate-400 text-sm italic bg-slate-50 rounded-xl">Play at least 2 exams to see **{label}** trends</div>;
 
-        const vals = data.map(d => d[dataKey]);
+        const validData = data.filter(d => typeof d[dataKey] === 'number' && !isNaN(d[dataKey]));
+
+        if (validData.length < 2) return <div className="h-32 flex items-center justify-center text-slate-400 text-sm italic bg-slate-50 rounded-xl">Play at least 2 exams to see **{label}** trends</div>;
+
+        const vals = validData.map(d => d[dataKey]);
         const max = Math.max(...vals, 1);
-        const min = Math.min(...vals);
+        const min = Math.min(...vals, 0); // Ensure min is at least 0 for better visualization
         const range = max - min || 1;
         const h = 100, w = 300, p = 10; // height, width, padding
 
-        const points = data.map((d, i) => {
-           const x = p + (i / (data.length - 1)) * (w - 2 * p);
+        const points = validData.map((d, i) => {
+           const x = p + (i / (validData.length - 1)) * (w - 2 * p);
            const y = h - p - ((d[dataKey] - min) / range) * (h - 2 * p);
            return `${x},${y}`;
         }).join(" ");
@@ -177,8 +354,8 @@
            <div className="w-full h-40 relative">
               <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full overflow-visible">
                  <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md"/>
-                 {data.map((d, i) => {
-                    const x = p + (i / (data.length - 1)) * (w - 2 * p);
+                 {validData.map((d, i) => {
+                    const x = p + (i / (validData.length - 1)) * (w - 2 * p);
                     const y = h - p - ((d[dataKey] - min) / range) * (h - 2 * p);
                     return <circle key={i} cx={x} cy={y} r="4" fill="white" stroke={color} strokeWidth="2" />
                  })}
@@ -190,14 +367,93 @@
       // --- SCREENS ---
 
       // 1. SETUP & DASHBOARD
-      const SetupScreen = ({ onStart, savedResults }) => {
+      const SetupScreen = ({ onStart, savedResults, setSavedResults, onResume }) => {
         const [tab, setTab] = useState('new');
-        const [config, setConfig] = useState({ name: '', q: 20, opt: 4, time: 30, pos: 4, neg: 1 });
+        // Added targetAccuracy and targetTimePerQ
+        const defaultState = { name: '', q: 20, opt: 4, time: 30, pos: 4, neg: 1, targetAccuracy: 80, targetTimePerQ: 60 };
+        const [config, setConfig] = useState(defaultState);
+        const tempSession = loadTempSession();
+        
+        // Use data management hooks
+        const { exportData, importData } = useDataManagement(savedResults, setSavedResults);
+        const fileInputRef = useRef(null);
 
         const handleStart = () => {
-           if (!config.name.trim() || config.q < 1) return alert("Please check your exam inputs.");
-           onStart({ ...config, name: config.name || `Practice Test #${savedResults.length + 1}` });
+           // Final validation before starting
+           const parsedConfig = {
+               name: config.name.trim() || `Practice Test #${savedResults.length + 1}`,
+               q: parseInt(config.q) || 1,
+               opt: parseInt(config.opt) || 4,
+               time: parseInt(config.time) || 1,
+               pos: parseFloat(config.pos) || 0,
+               neg: parseFloat(config.neg) || 0,
+               targetAccuracy: parseInt(config.targetAccuracy) || 0,
+               targetTimePerQ: parseFloat(config.targetTimePerQ) || 0,
+           };
+           
+           if (parsedConfig.q < 1 || parsedConfig.q > 500) return alert("Questions must be between 1 and 500.");
+           if (parsedConfig.time < 1) return alert("Time must be at least 1 minute.");
+           if (parsedConfig.pos < 0 || parsedConfig.neg < 0) return alert("Scores cannot be negative.");
+
+           onStart(parsedConfig);
         };
+
+        // Config History Logic
+        const uniqueConfigs = useMemo(() => {
+            const configs = {};
+            savedResults.forEach(r => {
+                const c = r.config;
+                if (!c) return;
+                // Use JSON.stringify of the important config parts for a robust key
+                const key = JSON.stringify({ q: c.q, opt: c.opt, time: c.time, pos: c.pos, neg: c.neg, targetAccuracy: c.targetAccuracy, targetTimePerQ: c.targetTimePerQ });
+                if (!configs[key]) {
+                    configs[key] = { ...c, key: key, name: `${c.q}Q | ${c.pos}/-${c.neg} | ${c.time}m` };
+                }
+            });
+            return Object.values(configs);
+        }, [savedResults]);
+
+        const loadConfig = (c) => {
+            // Convert to numbers before setting state
+            setConfig({
+                name: c.name.replace(/\s*\|\s*.*/, '').replace(/\s*\(Retake\)$/, ''), // Clean previous analytic suffixes
+                q: parseInt(c.q),
+                opt: parseInt(c.opt),
+                time: parseInt(c.time),
+                pos: parseFloat(c.pos),
+                neg: parseFloat(c.neg),
+                targetAccuracy: parseInt(c.targetAccuracy) || defaultState.targetAccuracy,
+                targetTimePerQ: parseFloat(c.targetTimePerQ) || defaultState.targetTimePerQ,
+            });
+        };
+
+        const handleInputChange = (field, value, min = 0, max = Infinity, isInt = false) => {
+            let num;
+            // Handle step="0.5" for decimal inputs like pos/neg
+            if (!isInt && (field === 'pos' || field === 'neg' || field === 'targetTimePerQ')) {
+                num = parseFloat(value);
+            } else {
+                num = parseInt(value);
+            }
+
+            if (isNaN(num) || value.trim() === '') {
+                // Allow empty string temporarily for numeric inputs before setting default on start
+                setConfig(prev => ({ ...prev, [field]: value }));
+                return;
+            }
+
+            // Simple check to allow entering decimals
+            if (!isInt && value.toString().endsWith('.')) {
+                setConfig(prev => ({ ...prev, [field]: value }));
+                return;
+            }
+
+            if (min !== undefined) num = Math.max(min, num);
+            if (max !== undefined) num = Math.min(max, num);
+
+            setConfig(prev => ({ ...prev, [field]: num }));
+        };
+
 
         return (
           <div className="max-w-5xl mx-auto px-4 py-8 fade-enter">
@@ -221,6 +477,43 @@
                      <Icons.Settings className="text-blue-600"/> Configure Exam
                   </h2>
                   
+                  {/* Resume Session Button (NEW) */}
+                  {tempSession && (
+                      <Card className="p-4 bg-purple-50/50 border-purple-100 mb-6 flex justify-between items-center">
+                          <div>
+                              <p className="text-sm font-bold text-purple-800 flex items-center gap-2">
+                                  <Icons.Timer size={16} /> Resume Session
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1 truncate">**{tempSession.config.name}** | Answers: {tempSession.answers.filter(a => a !== null).length}/{tempSession.answers.length} | Time Left: {Math.floor(tempSession.timeLeft / 60)}m</p>
+                          </div>
+                          <Button onClick={() => onResume(tempSession)} variant="secondary" className="px-4 py-2 text-sm bg-purple-200 text-purple-800 border-purple-300 hover:bg-purple-300">
+                              Resume <Icons.ChevronRight size={16} />
+                          </Button>
+                      </Card>
+                  )}
+
+
+                  {/* Configuration History Selector */}
+                  {uniqueConfigs.length > 0 && (
+                      <div className="mb-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                          <h4 className="text-xs font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
+                              <Icons.RotateCw size={14} /> Load Previous Configuration
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto custom-scrollbar">
+                              {uniqueConfigs.map((c, index) => (
+                                  <button 
+                                      key={index}
+                                      onClick={() => loadConfig(c)}
+                                      className="text-left text-xs p-2 bg-white rounded-lg border border-blue-100 font-medium hover:bg-blue-100 transition-colors"
+                                  >
+                                      {c.q}Q ({c.pos}/-{c.neg})
+                                      <div className="text-[10px] text-slate-400 truncate">{c.time} mins | Target: {c.targetAccuracy}%</div>
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                  )}
+
                   <div className="space-y-5">
                      <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
@@ -236,17 +529,19 @@
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                               Questions (N) <Tooltip text="Total number of questions in the test paper." />
                            </label>
-                           <input type="number" min="1" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" 
-                                  value={config.q} onChange={e=>setConfig({...config, q: e.target.value})}/>
+                           <input type="number" min="1" max="500" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-blue-500" 
+                                  value={config.q} 
+                                  onChange={e => handleInputChange('q', e.target.value, 1, 500, true)} />
+                           <p className="text-xs text-slate-400 mt-1">Min: 1, Max: 500</p>
                         </div>
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                               Options <Tooltip text="Number of choices per question (4 = A-D, 5 = A-E)." />
                            </label>
-                           <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                           <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-blue-500"
                                    value={config.opt} onChange={e=>setConfig({...config, opt: e.target.value})}>
-                              <option value="4">4 Options</option>
-                              <option value="5">5 Options</option>
+                              <option value="4">4 Options (A-D)</option>
+                              <option value="5">5 Options (A-E)</option>
                            </select>
                         </div>
                      </div>
@@ -256,22 +551,49 @@
                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
                               Time (Min) <Tooltip text="Total duration allowed for the exam." />
                            </label>
-                           <input type="number" className="w-full p-2 bg-white border border-blue-100 rounded-lg text-center font-bold text-slate-700" 
-                                  value={config.time} onChange={e=>setConfig({...config, time: e.target.value})}/>
+                           <input type="number" className="w-full p-2 bg-white border border-blue-100 rounded-lg text-center font-bold text-slate-700 focus:ring-blue-500" 
+                                  value={config.time} 
+                                  onChange={e => handleInputChange('time', e.target.value, 1, Infinity, true)} />
                         </div>
                         <div>
                            <label className="block text-[10px] font-bold text-green-600 uppercase mb-1">
                               Correct (+) <Tooltip text="Marks awarded for every correct answer." />
                            </label>
-                           <input type="number" className="w-full p-2 bg-white border border-green-200 rounded-lg text-center font-bold text-green-700" 
-                                  value={config.pos} onChange={e=>setConfig({...config, pos: e.target.value})}/>
+                           <input type="number" step="0.5" className="w-full p-2 bg-white border border-green-200 rounded-lg text-center font-bold text-green-700 focus:ring-green-500" 
+                                  value={config.pos} 
+                                  onChange={e => handleInputChange('pos', e.target.value, 0)} />
                         </div>
                         <div>
                            <label className="block text-[10px] font-bold text-rose-600 uppercase mb-1">
                               Wrong (-) <Tooltip text="Marks deducted for every incorrect answer (negative marking)." />
                            </label>
-                           <input type="number" className="w-full p-2 bg-white border border-rose-200 rounded-lg text-center font-bold text-rose-700" 
-                                  value={config.neg} onChange={e=>setConfig({...config, neg: e.target.value})}/>
+                           <input type="number" step="0.5" className="w-full p-2 bg-white border border-rose-200 rounded-lg text-center font-bold text-rose-700 focus:ring-rose-500" 
+                                  value={config.neg} 
+                                  onChange={e => handleInputChange('neg', e.target.value, 0)} />
+                        </div>
+                     </div>
+                     
+                     <h3 className="text-sm font-bold text-slate-600 mt-6 pt-4 border-t border-slate-100 flex items-center gap-2">
+                        <Icons.Target size={16} className="text-orange-500"/> Target Settings (Optional)
+                     </h3>
+                     <div className="grid grid-cols-2 gap-5">
+                        <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                              Target Accuracy (%) <Tooltip text="The minimum percentage of attempted questions you aim to get correct." />
+                           </label>
+                           <input type="number" min="0" max="100" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-orange-500" 
+                                  value={config.targetAccuracy} 
+                                  onChange={e => handleInputChange('targetAccuracy', e.target.value, 0, 100, true)} />
+                           <p className="text-xs text-slate-400 mt-1">Aim for 80-90%+</p>
+                        </div>
+                        <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                              Target Time / Q (sec) <Tooltip text="The maximum average time you want to spend on each attempted question." />
+                           </label>
+                           <input type="number" step="1" min="1" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-orange-500" 
+                                  value={config.targetTimePerQ} 
+                                  onChange={e => handleInputChange('targetTimePerQ', e.target.value, 1)} />
+                           <p className="text-xs text-slate-400 mt-1">e.g., 60 seconds (1 minute)</p>
                         </div>
                      </div>
 
@@ -281,14 +603,20 @@
                   </div>
                </Card>
             ) : (
-               <AnalyticsScreen savedResults={savedResults} />
+               <AnalyticsScreen 
+                  savedResults={savedResults} 
+                  onRetake={onStart} 
+                  exportData={exportData}
+                  importData={importData}
+                  fileInputRef={fileInputRef}
+               />
             )}
           </div>
         );
       };
 
       // 1.1 ANALYTICS SCREEN
-      const AnalyticsScreen = ({ savedResults }) => {
+      const AnalyticsScreen = ({ savedResults, onRetake, exportData, importData, fileInputRef }) => {
          const uniqueExams = useMemo(() => [...new Set(savedResults.map(r => r.examName))].sort(), [savedResults]);
          const [selected, setSelected] = useState(uniqueExams[0] || '');
          const [chartMode, setChartMode] = useState('score'); // 'score' or 'time'
@@ -298,6 +626,24 @@
             return savedResults.filter(r => r.examName === selected).sort((a,b) => a.timestamp - b.timestamp);
          }, [selected, savedResults]);
 
+         // Get the most recent configuration of the selected exam for the Re-take feature
+         const lastConfig = useMemo(() => {
+             if (!data.length) return null;
+             const c = data[data.length - 1].config;
+             if (!c) return null;
+             return {
+                 name: c.name || selected,
+                 q: c.q || 20,
+                 opt: c.opt || 4,
+                 time: c.time || 30,
+                 pos: c.pos || 4,
+                 neg: c.neg || 1,
+                 targetAccuracy: c.targetAccuracy || 80,
+                 targetTimePerQ: c.targetTimePerQ || 60,
+             };
+         }, [data, selected]);
+
+
          // Mistake Heatmap
          const mistakes = useMemo(() => {
             const counts = {};
@@ -305,32 +651,132 @@
             return Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 6);
          }, [data]);
 
+         // Skipped Questions Risk Zone
+         const skippedRiskZone = useMemo(() => {
+             const counts = {};
+             data.forEach(d => (d.skippedQNums || []).forEach(q => counts[q] = (counts[q] || 0) + 1));
+             return Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 6);
+         }, [data]);
+         
          const avgSpeed = data.length ? Math.round(data.reduce((acc, curr) => acc + (curr.totalQuestions / (curr.timeTakenSeconds/60)), 0) / data.length) : 0;
+         const bestScore = data.length ? Math.max(...data.map(d => typeof d.score === 'number' && !isNaN(d.score) ? d.score : -Infinity)) : 0;
+         const lastAttemptScore = data.length ? data[data.length-1].score : 0;
+         
+         const averageScore = useMemo(() => calculateAverageScore(data), [data]);
 
-         if(!uniqueExams.length) return <div className="text-center py-20 text-slate-400">No data found. Take an exam first!</div>;
+         const handleRetake = () => {
+             if (lastConfig) {
+                 // Pass a fresh config object with the "(Retake)" suffix
+                 onRetake({ ...lastConfig, name: `${lastConfig.name.replace(/\s*\(Retake\)$/, '')} (Retake)` }); 
+             }
+         };
+         
+         const triggerImport = () => {
+            fileInputRef.current.click();
+         };
+
+
+         if(!uniqueExams.length) return (
+             <div className="text-center py-20 text-slate-400">
+                <p>No data found. Take an exam first!</p>
+                <div className="mt-6 flex justify-center">
+                    <Button onClick={triggerImport} variant="secondary" className="px-4 py-2 text-sm text-blue-600 border-blue-200">
+                        <Icons.Upload size={16}/> Import Data
+                    </Button>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={importData} accept="application/json" className="hidden" />
+             </div>
+         );
+         
+         // Helper to render target status
+         const TargetStatus = ({ actual, target, type = 'accuracy' }) => {
+            let achieved = false;
+            let color = 'text-slate-500';
+            let icon = '▬';
+            let unit = type === 'accuracy' ? '%' : 's';
+            
+            if (target > 0) {
+                if (type === 'accuracy') {
+                    achieved = actual >= target;
+                    color = achieved ? 'text-green-600' : 'text-rose-600';
+                    icon = achieved ? '★' : '△';
+                } else { // time
+                    achieved = actual <= target && actual > 0;
+                    color = achieved ? 'text-green-600' : 'text-rose-600';
+                    icon = achieved ? '★' : '△';
+                }
+            }
+            
+            return (
+                <div className={`text-xs font-bold mt-1 ${color}`}>
+                   Target: {target}{unit} {target > 0 && icon}
+                </div>
+            );
+         };
+
 
          return (
             <div className="space-y-6 max-w-4xl mx-auto fade-enter">
-               <div className="flex justify-between items-center">
+               <div className="flex flex-wrap justify-between items-center gap-4">
                   <h2 className="text-2xl font-bold text-slate-800">Performance Hub</h2>
                   <select className="p-2 px-4 rounded-xl bg-white border border-slate-300 font-bold text-sm" 
                           value={selected} onChange={e => setSelected(e.target.value)}>
                      {uniqueExams.map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                </div>
+               
+               {/* Data Management Buttons */}
+               <Card className="p-4 bg-slate-50 border-slate-100 flex justify-between items-center">
+                   <h4 className="text-sm font-bold text-slate-700">Data Management</h4>
+                   <div className="flex gap-3">
+                       <Button onClick={exportData} variant="secondary" className="px-4 py-2 text-sm text-slate-600">
+                           <Icons.Download size={16} /> Export
+                       </Button>
+                       <Button onClick={triggerImport} variant="secondary" className="px-4 py-2 text-sm text-blue-600 border-blue-200">
+                           <Icons.Upload size={16}/> Import
+                       </Button>
+                       <input type="file" ref={fileInputRef} onChange={importData} accept="application/json" className="hidden" />
+                   </div>
+               </Card>
+               
+               {/* Re-take button block */}
+               {lastConfig && (
+                   <Card className="p-4 bg-purple-50/50 border-purple-100 flex justify-between items-center">
+                       <div>
+                           <p className="text-sm font-bold text-purple-800 flex items-center gap-2">
+                               <Icons.Repeat size={16} /> Re-take Session
+                           </p>
+                           <p className="text-xs text-slate-500 mt-1">Re-start the last configuration of **{selected}**.</p>
+                       </div>
+                       <Button onClick={handleRetake} variant="secondary" className="px-4 py-2 text-sm bg-purple-200 text-purple-800 border-purple-300 hover:bg-purple-300">
+                           Start Re-take <Icons.ChevronRight size={16} />
+                       </Button>
+                   </Card>
+               )}
 
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               {/* Summary Stats (Updated to include Target Info) */}
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    <Card className="flex flex-col items-center justify-center py-6 border-l-4 border-l-blue-500">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Total Attempts</span>
-                      <span className="text-3xl font-extrabold text-slate-800 mt-1">{data.length}</span>
+                      <span className="text-xs font-bold text-slate-400 uppercase">Last Accuracy</span>
+                      <span className="text-3xl font-extrabold text-slate-800 mt-1">{data.length ? data[data.length-1].accuracy : 0}%</span>
+                      {lastConfig && <TargetStatus actual={data.length ? data[data.length-1].accuracy : 0} target={lastConfig.targetAccuracy} type="accuracy" />}
                    </Card>
                    <Card className="flex flex-col items-center justify-center py-6 border-l-4 border-l-purple-500">
-                      <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1">Avg Speed <Tooltip text="Average number of questions you solve per minute." /></span>
-                      <span className="text-3xl font-extrabold text-purple-600 mt-1">{avgSpeed} <span className="text-sm font-medium text-slate-400">Q/min</span></span>
+                      <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1">Last Avg Time <Tooltip text="Average time spent per attempted question in the last exam." /></span>
+                      <span className="text-3xl font-extrabold text-purple-600 mt-1">{data.length ? data[data.length-1].avgTimePerQ : 0} <span className="text-sm font-medium text-slate-400">s/Q</span></span>
+                      {lastConfig && <TargetStatus actual={data.length ? data[data.length-1].avgTimePerQ : 0} target={lastConfig.targetTimePerQ} type="time" />}
                    </Card>
                    <Card className="flex flex-col items-center justify-center py-6 border-l-4 border-l-green-500">
                       <span className="text-xs font-bold text-slate-400 uppercase">Best Score</span>
-                      <span className="text-3xl font-extrabold text-green-600 mt-1">{Math.max(...data.map(d=>d.score))}</span>
+                      <span className="text-3xl font-extrabold text-green-600 mt-1">{bestScore}</span>
+                      <div className="text-xs text-slate-400 mt-1">{data.length} attempts</div>
+                   </Card>
+                   <Card className="flex flex-col items-center justify-center py-6 border-l-4 border-l-sky-500">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Avg Score</span>
+                      <span className="text-3xl font-extrabold text-sky-600 mt-1">{averageScore}</span>
+                      <div className={`text-xs font-bold mt-1 ${lastAttemptScore > averageScore ? 'text-green-500' : lastAttemptScore < averageScore ? 'text-rose-500' : 'text-slate-500'}`}>
+                         Last: {lastAttemptScore} {lastAttemptScore !== 0 && (lastAttemptScore > averageScore ? '▲' : lastAttemptScore < averageScore ? '▼' : '▬')}
+                      </div>
                    </Card>
                </div>
 
@@ -340,26 +786,28 @@
                      <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-slate-700 flex items-center gap-2">
                            <Icons.Zap size={18} className={chartMode === 'score' ? 'text-blue-500' : 'text-orange-500'} /> 
-                           {chartMode === 'score' ? 'Score Trend' : 'Exam Duration Trend'}
+                           {chartMode === 'score' ? 'Score Trend' : 'Time per Question Trend'}
                         </h3>
                         <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-bold">
                            <button onClick={()=>setChartMode('score')} className={`px-3 py-1 rounded-md transition ${chartMode==='score' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Score</button>
-                           <button onClick={()=>setChartMode('time')} className={`px-3 py-1 rounded-md transition ${chartMode==='time' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}`}>Time</button>
+                           <button onClick={()=>setChartMode('time')} className={`px-3 py-1 rounded-md transition ${chartMode==='time' ? 'bg-white shadow text-orange-600' : 'text-slate-500'}`}>Time/Q</button>
                         </div>
                      </div>
                      <LineChart 
                         data={data} 
-                        dataKey={chartMode === 'score' ? 'score' : 'timeTakenSeconds'} 
+                        dataKey={chartMode === 'score' ? 'score' : 'avgTimePerQ'} 
                         color={chartMode === 'score' ? '#3b82f6' : '#f97316'} 
-                        label={chartMode}
+                        label={chartMode === 'score' ? 'Score' : 'Time per Q'}
                      />
                   </Card>
+               </div>
 
+               <div className="grid md:grid-cols-2 gap-6">
                   {/* MISTAKE HEATMAP */}
                   <Card className="border-rose-100 bg-rose-50/30">
                      <h3 className="font-bold text-rose-800 mb-4 flex items-center gap-2">
-                        <Icons.AlertTriangle size={18}/> Problem Areas
-                        <Tooltip text="These are the specific Question Numbers you got wrong most frequently across all attempts." />
+                        <Icons.AlertTriangle size={18}/> Error Prone Areas
+                        <Tooltip text="The specific Question Numbers you got wrong most frequently across all attempts." />
                      </h3>
                      {mistakes.length > 0 ? (
                         <div className="space-y-3">
@@ -378,41 +826,118 @@
                      )}
                   </Card>
                   
-                  {/* TIME INSIGHT */}
-                  <Card>
-                     <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Icons.Timer size={18}/> Time Management</h3>
-                     <div className="text-sm text-slate-600 space-y-2">
-                        <p>Latest Exam Time: <strong>{Math.floor(data[data.length-1].timeTakenSeconds/60)}m {data[data.length-1].timeTakenSeconds%60}s</strong></p>
-                        <p>Avg Time per Q: <strong>{data[data.length-1].avgTimePerQ} sec</strong></p>
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
-                           Tip: {data[data.length-1].avgTimePerQ < 30 ? "You're solving very fast! Check accuracy." : "Good pacing. Keep it consistent."}
+                  {/* SKIPPED QUESTIONS RISK ZONE */}
+                  <Card className="border-yellow-100 bg-yellow-50/30">
+                     <h3 className="font-bold text-yellow-800 mb-4 flex items-center gap-2">
+                        <Icons.FileText size={18}/> Skipped Questions Risk Zone
+                        <Tooltip text="The specific Question Numbers you SKIPPED most frequently across all attempts. These are often forgotten topics." />
+                     </h3>
+                     {skippedRiskZone.length > 0 ? (
+                        <div className="space-y-3">
+                           {skippedRiskZone.map(([q, count], idx) => (
+                              <div key={q} className="flex items-center justify-between bg-white p-3 rounded-xl border border-yellow-100 shadow-sm">
+                                 <div className="flex items-center gap-3">
+                                    <span className="w-6 h-6 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center text-xs font-bold">#{idx+1}</span>
+                                    <span className="font-bold text-slate-700">Question {q}</span>
+                                 </div>
+                                 <div className="text-xs font-bold text-yellow-600">{count} skips</div>
+                              </div>
+                           ))}
                         </div>
+                     ) : (
+                        <p className="text-sm text-slate-500 italic">Excellent time management! You haven't skipped many questions.</p>
+                     )}
+                  </Card>
+
+                  {/* TIME INSIGHT */}
+                  <Card className="md:col-span-2">
+                     <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Icons.Timer size={18}/> Time Management Insights</h3>
+                     {data.length > 0 ? (
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-600">
+                           <div className="border-r pr-4">
+                              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Latest Exam Duration</p>
+                              <p><strong>{Math.floor(data[data.length-1].timeTakenSeconds/60)}m {data[data.length-1].timeTakenSeconds%60}s</strong></p>
+                           </div>
+                           <div className="border-r pr-4">
+                              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Latest Avg Time / Q</p>
+                              <p><strong>{data[data.length-1].avgTimePerQ} sec</strong></p>
+                           </div>
+                           <div className="border-r pr-4">
+                              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Target Speed</p>
+                              <p><strong>{lastConfig.targetTimePerQ} sec</strong></p>
+                           </div>
+                           <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Average Q/Min</p>
+                              <p><strong>{avgSpeed}</strong></p>
+                           </div>
+                       </div>
+                     ) : (
+                         <p className="text-sm text-slate-500 italic">No time data available yet.</p>
+                     )}
+                     <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
+                        Tip: {data.length > 0 && data[data.length-1].avgTimePerQ < lastConfig.targetTimePerQ * 0.9 ? "You're solving very fast! Ensure accuracy isn't compromised. Check your Accuracy Target." : "Good pacing. Keep it consistent and aim for a balance between speed and accuracy."}
                      </div>
                   </Card>
+
                </div>
             </div>
          );
       };
 
       // 2. EXAM SCREEN
-      const ExamScreen = ({ config, onFinish }) => {
-        const [answers, setAnswers] = useState(Array(parseInt(config.q)).fill(null));
-        const [timeLeft, setTimeLeft] = useState(config.time * 60);
-        const [startTime] = useState(Date.now());
+      const ExamScreen = ({ config, initialAnswers = null, initialTimeLeft = null, onFinish, onCancel }) => {
+        const [answers, setAnswers] = useState(initialAnswers || Array(parseInt(config.q)).fill(null));
+        const [timeLeft, setTimeLeft] = useState(initialTimeLeft !== null ? initialTimeLeft : config.time * 60);
+        const [startTime] = useState(Date.now() - (config.time * 60 - timeLeft)); // Re-calculate start time for auto-save resume
 
+        // Auto-Save Effect (NEW)
+        useEffect(() => {
+            if (timeLeft > 0) {
+                const session = {
+                    answers,
+                    timeLeft,
+                    config,
+                    timestamp: Date.now()
+                };
+                // Throttle save for performance (save every 5 seconds)
+                if (timeLeft % 5 === 0 || timeLeft === config.time * 60) {
+                    saveTempSession(session);
+                }
+            }
+        }, [answers, timeLeft, config]);
+
+
+        // Timer Effect
         useEffect(() => {
           const t = setInterval(() => {
             setTimeLeft(prev => {
-              if (prev <= 1) { clearInterval(t); handleSubmit(); return 0; }
+              if (prev <= 1) { 
+                clearInterval(t); 
+                // Clear session on time-out before submitting
+                clearTempSession();
+                handleSubmit(0); // Submit with 0 time left
+                return 0; 
+              }
               return prev - 1;
             });
           }, 1000);
-          return () => clearInterval(t);
+          return () => {
+             // Cleanup: Clear interval on unmount
+             clearInterval(t);
+          };
         }, []);
 
-        const handleSubmit = () => {
-           const timeTaken = config.time * 60 - timeLeft; // Calculate actual time used
-           onFinish(answers, timeTaken);
+        const handleSubmit = (finalTimeLeft = timeLeft) => {
+           const timeTaken = config.time * 60 - finalTimeLeft; // Calculate actual time used
+           clearTempSession(); // Clear session immediately after submitting
+           onFinish(answers, timeTaken, config); // Pass config here for immediate correction context
+        };
+        
+        const handleCancel = () => {
+             if (window.confirm("Are you sure you want to cancel the exam? Your progress will be discarded.")) {
+                 clearTempSession();
+                 onCancel();
+             }
         };
 
         const toggle = (qIdx, optIdx) => {
@@ -426,14 +951,16 @@
            const sec = (s%60).toString().padStart(2, '0');
            return `${m}:${sec}`;
         };
+        
+        const answeredCount = answers.filter(a=>a!==null).length;
 
         return (
            <div className="h-screen flex flex-col fade-enter">
               {/* HEADER */}
               <header className="bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-30">
-                 <div>
-                    <h2 className="font-bold text-slate-800 text-lg">{config.name}</h2>
-                    <p className="text-xs text-slate-500 font-medium">{answers.filter(a=>a!==null).length} of {config.q} Answered</p>
+                 <div className="flex flex-col">
+                    <h2 className="font-bold text-slate-800 text-lg truncate max-w-[150px] sm:max-w-none">{config.name}</h2>
+                    <p className="text-xs text-slate-500 font-medium">{answeredCount} of {config.q} Answered</p>
                  </div>
                  <div className={`px-4 py-2 rounded-xl font-mono text-xl font-bold transition-colors ${timeLeft < 300 ? 'bg-rose-100 text-rose-600 animate-pulse' : 'bg-slate-100 text-slate-700'}`}>
                     {formatTime(timeLeft)}
@@ -445,20 +972,21 @@
                  <div className="max-w-3xl mx-auto space-y-3">
                     {answers.map((ans, qIdx) => (
                        <div key={qIdx} className="bg-white p-3 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-                          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold text-sm">
+                          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold text-sm shrink-0">
                              {qIdx + 1}
                           </span>
                           
-                          <div className="flex gap-3 md:gap-6">
+                          <div className="flex gap-2 sm:gap-4 md:gap-6 flex-wrap justify-end">
                              {OMR_OPTIONS.slice(0, config.opt).map((opt, oIdx) => (
                                 <button
                                    key={oIdx}
                                    onClick={() => toggle(qIdx, oIdx)}
-                                   className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all transform active:scale-90 ${
+                                   className={`omr-bubble w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all transform active:scale-90 ${
                                       ans === oIdx 
                                       ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 scale-105' 
                                       : 'bg-white border-slate-200 text-slate-400 hover:border-blue-300 hover:bg-blue-50'
                                    }`}
+                                   aria-label={`Question ${qIdx + 1} option ${opt}`}
                                 >
                                    {opt}
                                 </button>
@@ -471,8 +999,11 @@
 
               {/* FOOTER */}
               <footer className="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
-                 <div className="max-w-3xl mx-auto">
-                    <Button onClick={handleSubmit} className="w-full">
+                 <div className="max-w-3xl mx-auto flex gap-4">
+                    <Button onClick={handleCancel} variant="secondary" className="px-4 py-2 text-sm text-slate-500">
+                        Cancel
+                    </Button>
+                    <Button onClick={() => handleSubmit()} className="flex-1">
                        Submit Exam Now
                     </Button>
                  </div>
@@ -483,44 +1014,107 @@
 
       // 3. CORRECTION SCREEN
       const CorrectionScreen = ({ config, answers, onDone }) => {
+         // Initialize key. Unattempted questions will default to 'unmarked'
          const [key, setKey] = useState(Array(parseInt(config.q)).fill('unmarked'));
+         
+         // Real-time Calculation for Feedback
+         const scoreFeedback = useMemo(() => {
+             let correctCount = 0;
+             let incorrectCount = 0;
+             let totalAttempted = 0;
+             let attemptedAndUnmarked = 0;
 
-         const handleMark = (idx, status) => {
+             key.forEach((status, i) => {
+                 const attempted = answers[i] !== null;
+                 if (attempted) {
+                     totalAttempted++;
+                     if (status === 'correct') {
+                         correctCount++;
+                     } else if (status === 'incorrect') {
+                         incorrectCount++;
+                     } else if (status === 'unmarked') {
+                         attemptedAndUnmarked++;
+                     }
+                 }
+             });
+             
+             const rawScore = (correctCount * config.pos) - (incorrectCount * config.neg);
+             const totalPossibleScore = config.q * config.pos;
+
+             return {
+                 score: parseFloat(rawScore.toFixed(2)),
+                 correct: correctCount,
+                 incorrect: incorrectCount,
+                 totalAttempted: totalAttempted,
+                 attemptedAndUnmarked: attemptedAndUnmarked,
+                 totalPossibleScore: totalPossibleScore,
+             };
+         }, [key, answers, config.pos, config.neg, config.q]);
+
+
+         const handleMark = useCallback((idx, status) => {
             const newKey = [...key];
             newKey[idx] = newKey[idx] === status ? 'unmarked' : status;
             setKey(newKey);
-         };
+         }, [key]);
 
          const finalize = () => {
-            const attemptedIndices = answers.map((a, i) => a !== null ? i : -1).filter(i => i !== -1);
-            const allMarked = attemptedIndices.every(i => key[i] !== 'unmarked');
-            if(!allMarked) return alert("Please mark all your ATTEMPTED answers as Correct or Incorrect.");
+            if(scoreFeedback.attemptedAndUnmarked > 0) {
+                 return alert(`Please mark all ${scoreFeedback.attemptedAndUnmarked} ATTEMPTED answers as Correct or Incorrect before finishing.`);
+            }
             onDone(key);
          };
+         
+         const attemptedCount = answers.filter(a => a !== null).length;
+         const allAnswered = attemptedCount === config.q;
+
 
          return (
             <div className="h-screen flex flex-col bg-slate-50 fade-enter">
-               <header className="bg-white p-4 shadow-sm border-b border-slate-200 flex justify-between items-center z-30">
+               <header className="bg-white p-4 shadow-sm border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
                   <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                      <Icons.Check size={20} className="text-green-500"/> Manual Correction
                   </h2>
-                  <Button onClick={finalize} variant="success" className="px-4 py-2 text-sm">Finish Grading</Button>
+                  <Button onClick={finalize} variant="success" className="px-4 py-2 text-sm" disabled={scoreFeedback.attemptedAndUnmarked > 0}>Finish Grading</Button>
                </header>
 
                <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                  <div className="max-w-3xl mx-auto space-y-3">
+                  <div className="max-w-3xl mx-auto space-y-5">
+                     
+                     {/* Real-time Score Feedback Card */}
+                     <Card className="p-4 bg-blue-50/50 border-blue-100 flex justify-between items-center sticky top-0 z-10 shadow-lg">
+                        <div className="text-left">
+                            <p className="text-xs font-bold text-blue-800 uppercase">Current Score</p>
+                            <p className="text-3xl font-extrabold text-blue-600">
+                                {scoreFeedback.score} 
+                                <span className="text-sm font-medium text-slate-400"> / {scoreFeedback.totalPossibleScore}</span>
+                            </p>
+                        </div>
+                        <div className="flex gap-4 text-xs font-bold text-center">
+                            <div className="text-green-600">Correct: {scoreFeedback.correct}</div>
+                            <div className="text-rose-600">Wrong: {scoreFeedback.incorrect}</div>
+                            <div className={`transition-colors ${scoreFeedback.attemptedAndUnmarked > 0 ? 'text-orange-600 font-extrabold' : 'text-slate-500'}`}>
+                                Unmarked: {scoreFeedback.attemptedAndUnmarked}
+                            </div>
+                        </div>
+                     </Card>
+
                      <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl text-orange-800 text-sm font-medium flex gap-3 items-start">
                         <Icons.Info className="shrink-0 mt-0.5"/>
-                        <p>Compare your OMR sheet with the official Answer Key. Mark attempted questions as Correct or Incorrect. Unattempted questions are auto-graded as 0.</p>
+                        <p>Compare your OMR sheet with the official Answer Key. Mark **ATTEMPTED** answers as Correct or Incorrect. Skipped questions ({config.q - attemptedCount} Q) are automatically graded as unattempted (0 marks).</p>
                      </div>
 
                      {answers.map((ans, i) => {
                         const attempted = ans !== null;
                         const status = key[i];
+                        const needsAttention = attempted && status === 'unmarked';
+                        
                         return (
-                           <div key={i} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${attempted ? 'bg-white border-slate-200' : 'bg-slate-100 border-transparent opacity-60'}`}>
+                           <div key={i} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${attempted ? (needsAttention ? 'bg-orange-100 border-orange-300 shadow-md' : 'bg-white border-slate-200') : 'bg-slate-100 border-transparent opacity-60'}`}>
                               <div className="flex items-center gap-4">
-                                 <span className="text-slate-400 font-bold text-sm">Q{i+1}</span>
+                                 <span className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm shrink-0 ${needsAttention ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                    {i+1}
+                                 </span>
                                  <div className="flex flex-col">
                                     <span className="text-[10px] uppercase font-bold text-slate-400">Your Answer</span>
                                     <span className={`font-bold text-lg ${attempted ? 'text-blue-600' : 'text-slate-400 italic'}`}>
@@ -550,16 +1144,65 @@
 
       // 4. RESULT SCREEN
       const ResultScreen = ({ result, onHome }) => {
-         const { score, correct, incorrect, unattempted, accuracy, timeTakenSeconds } = result;
+         const { score, totalPossibleScore, correct, incorrect, unattempted, accuracy, timeTakenSeconds, config, questionStatuses, avgTimePerQ } = result;
          
+         // Dynamic score color coding based on performance
+         const performanceRatio = score / totalPossibleScore;
+         let cardGradient = 'from-blue-600 to-indigo-700';
+
+         if (performanceRatio >= 0.75) {
+             cardGradient = 'from-emerald-600 to-green-700';
+         } else if (performanceRatio >= 0.45) {
+             cardGradient = 'from-blue-600 to-indigo-700';
+         } else {
+             cardGradient = 'from-rose-600 to-red-700';
+         }
+         
+         const getStatusColor = (status) => {
+             if (status === 'correct') return 'bg-green-500 text-white';
+             if (status === 'incorrect') return 'bg-rose-500 text-white';
+             if (status === 'unattempted') return 'bg-slate-300 text-slate-600';
+             return 'bg-slate-200';
+         };
+         
+         const renderTargetAchievement = (actual, target, type = 'accuracy') => {
+             if (!target || target === 0) return null;
+             
+             let achieved;
+             let label;
+             let color;
+
+             if (type === 'accuracy') {
+                 achieved = actual >= target;
+                 label = `Target: ${target}%`;
+                 color = achieved ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700';
+             } else { // time
+                 achieved = actual <= target && actual > 0;
+                 label = `Target: < ${target}s/Q`;
+                 color = achieved ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700';
+             }
+             
+             return (
+                 <div className={`text-xs font-bold px-3 py-1 rounded-full ${color}`}>
+                     {achieved ? '✅ Target Met' : '❌ Target Missed'} ({label})
+                 </div>
+             );
+         };
+
          return (
             <div className="max-w-2xl mx-auto px-4 py-10 fade-enter">
                <Card className="overflow-hidden border-0 shadow-2xl p-0">
-                  <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-10 text-center text-white relative">
+                  <div className={`bg-gradient-to-br ${cardGradient} p-10 text-center text-white relative`}>
                      <div className="relative z-10">
-                        <h2 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-2">Final Score</h2>
-                        <h1 className="text-7xl font-extrabold mb-2">{score}</h1>
-                        <p className="opacity-90 font-medium">Accuracy: {accuracy}%</p>
+                        <h2 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-2">{config.name} - Final Score</h2>
+                        <h1 className={`text-7xl font-extrabold mb-1 drop-shadow-lg text-white`}>{score}</h1>
+                        <p className="text-xl font-medium opacity-90 mb-4">out of {totalPossibleScore}</p>
+                        
+                        <div className="flex flex-col sm:flex-row justify-center gap-4 text-center mt-6">
+                            {renderTargetAchievement(accuracy, config.targetAccuracy, 'accuracy')}
+                            {renderTargetAchievement(avgTimePerQ, config.targetTimePerQ, 'time')}
+                        </div>
+                        
                      </div>
                      {/* Decorative Circles */}
                      <div className="absolute top-0 left-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-x-10 -translate-y-10"></div>
@@ -586,15 +1229,28 @@
                         <div className="flex items-center gap-3">
                            <div className="bg-blue-200 p-2 rounded-lg text-blue-700"><Icons.Clock size={20}/></div>
                            <div>
-                              <div className="text-xs font-bold text-blue-400 uppercase">Time Taken</div>
+                              <div className="text-xs font-bold text-blue-400 uppercase">Total Time</div>
                               <div className="font-bold text-blue-900">{Math.floor(timeTakenSeconds/60)}m {timeTakenSeconds%60}s</div>
                            </div>
                         </div>
                         <div className="text-right">
-                           <div className="text-xs font-bold text-blue-400 uppercase">Speed</div>
-                           <div className="font-bold text-blue-900">{result.avgTimePerQ}s / Q</div>
+                           <div className="text-xs font-bold text-blue-400 uppercase">Accuracy Rate</div>
+                           <div className="font-bold text-blue-900">{accuracy}%</div>
                         </div>
                      </div>
+                     
+                     {/* Detailed Question Status Breakdown (NEW) */}
+                     <div className="mb-8 pt-4 border-t border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><Icons.Activity size={18} className="text-orange-500"/> Question Breakdown</h3>
+                        <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar p-2 -m-2">
+                           {questionStatuses.map((status, i) => (
+                               <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${getStatusColor(status)}`} title={`Q${i+1}: ${status}`}>
+                                   {i+1}
+                               </div>
+                           ))}
+                        </div>
+                     </div>
+
 
                      <Button onClick={onHome} className="w-full">Back to Dashboard</Button>
                   </div>
@@ -629,32 +1285,43 @@
          const [data, setData] = useState({});
          const [savedResults, setSavedResults] = useState(loadResults());
 
-         const nav = (v, d={}) => { setView(v); setData(prev => ({...prev, ...d})); };
+         // Consistent navigation utility
+         const nav = useCallback((v, d = {}) => { setView(v); setData(prev => ({...prev, ...d})); }, []);
 
-         const startExam = (config) => nav('exam', { config });
+         const startExam = useCallback((config) => nav('exam', { config }), [nav]);
          
-         const finishExam = (answers, timeTaken) => nav('correction', { answers, timeTaken });
+         // New: Resume session logic
+         const resumeExam = useCallback((session) => nav('exam', { config: session.config, initialAnswers: session.answers, initialTimeLeft: session.timeLeft }), [nav]);
+
+         const finishExam = useCallback((answers, timeTaken, config) => nav('correction', { answers, timeTaken, config }), [nav]); 
          
-         const completeCorrection = (key) => {
-            const result = calculateScore(data.answers, key, data.config.pos, data.config.neg, data.timeTaken);
+         const completeCorrection = useCallback((key) => {
+            if (!data.config || !data.answers) {
+                alert("Error: Missing exam data for scoring. Returning to setup.");
+                return nav('setup');
+            }
+            
+            // Recalculate and finalize the result using the complete data stored in state
+            const result = calculateScore(data.answers, key, data.config.pos, data.config.neg, data.timeTaken, data.config);
+            
             const final = { 
                ...result, 
-               examName: data.config.name, 
+               // Ensure the saved examName is clean
+               examName: data.config.name.replace(/\s*\(Retake\)$/, ''), 
                timestamp: Date.now(), 
-               config: data.config 
             };
             
             const newHistory = [...savedResults, final];
             setSavedResults(newHistory);
-            saveResults(newHistory);
+            saveResults(newHistory); 
             nav('result', { result: final });
-         };
+         }, [data.answers, data.config, data.timeTaken, nav, savedResults]);
 
          return (
             <div className="min-h-screen flex flex-col">
                <div className="flex-1 w-full pt-4 pb-20">
-                  {view === 'setup' && <SetupScreen onStart={startExam} savedResults={savedResults} />}
-                  {view === 'exam' && <ExamScreen config={data.config} onFinish={finishExam} />}
+                  {view === 'setup' && <SetupScreen onStart={startExam} onResume={resumeExam} savedResults={savedResults} setSavedResults={setSavedResults} />}
+                  {view === 'exam' && <ExamScreen config={data.config} initialAnswers={data.initialAnswers} initialTimeLeft={data.initialTimeLeft} onFinish={finishExam} onCancel={() => setView('setup')} />}
                   {view === 'correction' && <CorrectionScreen config={data.config} answers={data.answers} onDone={completeCorrection} />}
                   {view === 'result' && <ResultScreen result={data.result} onHome={() => setView('setup')} />}
                </div>
